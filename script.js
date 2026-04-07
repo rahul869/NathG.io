@@ -1,26 +1,39 @@
-// Audio Context setup (Browser ka sound engine)
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+// Audio Context setup
+let audioCtx;
+
+// Function: Sound Engine ko start karne ke liye
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    // Agar engine soya hua (suspended) hai, toh use jagayein
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
 
 // Function: Sound generate karne ke liye
 function playNote(frequency) {
+    initAudio(); // Har baar check karega ki audio on hai ya nahi
+    
     if (!frequency) return;
 
     const oscillator = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
 
-    // Harmonium jaisi reedy sound ke liye 'sawtooth' sabse best hai
     oscillator.type = 'sawtooth'; 
     oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
 
-    // Sound ko thoda smooth banane ke liye (Attack & Release)
-    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 1.5);
+    // Fade in/out taaki kaano ko chubhe nahi
+    gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.1);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 1.2);
 
     oscillator.connect(gainNode);
     gainNode.connect(audioCtx.destination);
 
     oscillator.start();
-    oscillator.stop(audioCtx.currentTime + 1.5);
+    oscillator.stop(audioCtx.currentTime + 1.2);
 }
 
 // Mouse Click Event
@@ -36,7 +49,7 @@ document.querySelectorAll('.key').forEach(key => {
     });
 });
 
-// Computer Keyboard Event (A, S, D, etc.)
+// Keyboard Support
 window.addEventListener('keydown', (e) => {
     const keyElement = document.querySelector(`.key[data-key="${e.key.toLowerCase()}"]`);
     if (keyElement && !e.repeat) {
@@ -52,3 +65,8 @@ window.addEventListener('keyup', (e) => {
         keyElement.classList.remove('active');
     }
 });
+
+// Click anywhere to Resume Audio (Zaroori Step)
+document.body.addEventListener('click', () => {
+    initAudio();
+}, { once: true });
